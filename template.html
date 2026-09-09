@@ -194,6 +194,37 @@
   .foot a:hover { color: var(--accent); text-decoration: underline; }
   .ext { font-size: 13px; margin-bottom: 8px; overflow-wrap: anywhere; }
 
+  /* ---------- thread view ---------- */
+  body.thread-mode #tiles,
+  body.thread-mode #chartcard,
+  body.thread-mode .filters,
+  body.thread-mode #feed,
+  body.thread-mode #loadmore { display: none !important; }
+  body:not(.thread-mode) #thread { display: none; }
+
+  .backbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 22px 0 16px; }
+  .backbtn { display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 13.5px;
+             background: var(--surface); color: var(--ink-2); border: 1px solid var(--border);
+             border-radius: 8px; padding: 8px 13px; cursor: pointer; }
+  .backbtn:hover { color: var(--ink); }
+  .backbar .where { font-size: 13px; color: var(--muted); }
+
+  .threadpost { border-left: 3px solid var(--series-2); }
+  .ttitle { font-size: 22px; font-weight: 600; line-height: 1.3; letter-spacing: -.015em; margin: 0 0 10px; }
+  .archived-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+                    color: var(--muted); margin-bottom: 5px; }
+  .selftext { background: var(--sunken); border-radius: 8px; padding: 12px 14px; }
+
+  .threadhead { font-size: 14px; font-weight: 600; margin: 26px 0 12px; }
+  .threadhead span { color: var(--muted); font-weight: 400; }
+  .tnode { margin-bottom: 10px; }
+  .tkids { margin-left: 20px; padding-left: 14px; border-left: 2px solid var(--grid); margin-top: 10px; }
+  .tcom { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--series-1);
+          border-radius: 12px; padding: 13px 16px; box-shadow: var(--shadow); }
+  .tcom-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12.5px;
+               color: var(--muted); margin-bottom: 7px; }
+  .tcom-meta .me { color: var(--ink); font-weight: 600; }
+
   .empty { text-align: center; color: var(--muted); padding: 60px 20px; }
   .loadmore { display: block; width: 100%; margin: 16px 0 0; padding: 12px; font: inherit; font-size: 14px;
               background: var(--surface); color: var(--ink-2); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
@@ -219,7 +250,7 @@
 
 <section class="tiles" id="tiles"></section>
 
-<section class="card">
+<section class="card" id="chartcard">
   <div class="card-head">
     <div>
       <div class="card-title">Activity by month</div>
@@ -259,6 +290,8 @@
 
 <main id="feed"></main>
 <button class="loadmore hidden" id="loadmore" type="button">Load more</button>
+
+<section id="thread"></section>
 
 <section class="provenance">
   <h2>About this archive</h2>
@@ -484,7 +517,7 @@ function card(it) {
     const ext = it.u ? '<div class="ext"><a href="' + esc(it.u) + '" target="_blank" rel="noopener noreferrer">' +
       esc(it.u) + "</a> <span style='color:var(--muted)'>(" + esc(it.dom) + ")</span></div>" : "";
     return '<article class="item">' + metaRow(it) +
-      '<h3 class="ptitle"><a href="' + RD(it.p) + '" target="_blank" rel="noopener noreferrer">' + esc(it.t) + "</a></h3>" +
+      '<h3 class="ptitle"><a href="#t/' + it.id + '">' + esc(it.t) + "</a></h3>" +
       ext +
       bodyBlock(it.b, it.gone, "Body not preserved — the archive captured this post only after it was deleted.") +
       '<div class="foot"><a href="' + RD(it.p) + '" target="_blank" rel="noopener noreferrer">View on Reddit ↗</a></div>' +
@@ -495,8 +528,7 @@ function card(it) {
   let ctx = '<div class="ctxwrap">';
   ctx += '<div class="ctxlbl">In reply to a post</div>';
   if (post) {
-    ctx += '<div class="ctxpost"><a href="' + RD(post.p) + '" target="_blank" rel="noopener noreferrer">' +
-      esc(post.t) + "</a></div>";
+    ctx += '<div class="ctxpost"><a href="#t/' + post.id + '">' + esc(post.t) + "</a></div>";
     ctx += '<div class="ctxsub">r/' + esc(post.s) + " · posted by u/" + esc(post.a) + " · " + dt(post.c) +
       " · " + nf(post.sc) + " pts</div>";
   } else {
@@ -586,7 +618,141 @@ $("#theme").addEventListener("click", () => {
   document.documentElement.dataset.theme = cur === "dark" ? "light" : "dark";
 });
 
+/* ---------- thread view ---------- */
+// Every submission we know of: the ones commented under, plus the user's own.
+const postById = new Map(Object.entries(DATA.ctx));
+for (const it of DATA.items) if (it.k === "p") postById.set(it.id, it);
+
+const commentsByLink = new Map();
+for (const it of DATA.items) if (it.k === "c") {
+  if (!commentsByLink.has(it.link)) commentsByLink.set(it.link, []);
+  commentsByLink.get(it.link).push(it);
+}
+
+// The whole point of this view: Reddit shows nothing here once the account is
+// deleted, so the archived selftext is the only copy left.
+function postBody(post) {
+  if (post.gone)
+    return '<div class="absent">Body not preserved — the archive captured this post only after it was deleted.</div>';
+  if (!post.b) return "";
+  return '<div class="archived-label">Post text, recovered from the archive</div>' +
+         '<div class="selftext body">' + md(post.b) + "</div>";
+}
+
+function threadPost(post) {
+  const isUser = post.a === DATA.user;
+  const bits = ['<span class="kind p">post</span>',
+                '<span class="sr">r/' + esc(post.s) + "</span>",
+                '<span class="dot"></span><span>posted by <span class="' + (isUser ? "me" : "") + '">u/' +
+                  esc(post.a) + "</span></span>",
+                '<span class="dot"></span><span>' + dt(post.c) + "</span>",
+                '<span class="dot"></span><span class="score">' + nf(post.sc) + " pts</span>"];
+  if (post.nc != null)
+    bits.push('<span class="dot"></span><span>' + nf(post.nc) + " comment" + (post.nc === 1 ? "" : "s") + "</span>");
+  if (post.f) bits.push('<span class="flair">' + esc(post.f) + "</span>");
+  if (post.nsfw) bits.push('<span class="flair">NSFW</span>');
+
+  const ext = post.u ? '<div class="ext"><a href="' + esc(post.u) + '" target="_blank" rel="noopener noreferrer">' +
+    esc(post.u) + '</a> <span style="color:var(--muted)">(' + esc(post.dom) + ")</span></div>" : "";
+
+  return '<article class="item threadpost"><div class="meta">' + bits.join("") + "</div>" +
+    '<h2 class="ttitle">' + esc(post.t) + "</h2>" + ext + postBody(post) +
+    '<div class="foot"><a href="' + RD(post.p) + '" target="_blank" rel="noopener noreferrer">View on Reddit ↗</a></div>' +
+    "</article>";
+}
+
+function userComment(c) {
+  const bits = ['<span class="me">u/' + esc(DATA.user) + "</span>",
+                '<span class="dot"></span><span>' + dt(c.c) + "</span>",
+                '<span class="dot"></span><span class="score">' + nf(c.sc) + " pts</span>"];
+  if (c.op) bits.push('<span class="op">OP</span>');
+  return '<div class="tcom"><div class="tcom-meta">' + bits.join("") + "</div>" +
+    '<div class="body">' + md(c.b) + "</div>" +
+    '<div class="foot"><a href="' + RD(c.p) + '" target="_blank" rel="noopener noreferrer">View on Reddit ↗</a></div>' +
+    "</div>";
+}
+
+function parentQuote(c) {
+  if (c.top)
+    return '<div class="parent"><div class="who">Top-level comment — this replies to the post itself.</div></div>';
+  if (c.par)
+    return '<div class="parent"><div class="who">Replying to <b>u/' + esc(c.par.a) + "</b> · " +
+      dt(c.par.c) + " · " + nf(c.par.sc) + " pts</div>" +
+      (c.par.gone ? '<div class="absent">This comment was deleted before the archive captured it.</div>'
+                  : '<div class="body">' + md(c.par.b) + "</div>") + "</div>";
+  return '<div class="parent"><div class="absent">The comment being replied to (' + esc(c.parMissing) +
+    ") is not present in the archive.</div></div>";
+}
+
+function renderThread(pid) {
+  const el = $("#thread");
+  const post = postById.get(pid);
+  const bar = '<div class="backbar"><button class="backbtn" type="button" id="back">← Back to archive</button>' +
+    (post ? '<span class="where">r/' + esc(post.s) + " · " + dt(post.c) + "</span>" : "") + "</div>";
+
+  if (!post) {
+    el.innerHTML = bar + '<div class="empty">That thread isn\'t in this archive.</div>';
+  } else {
+    const mine = (commentsByLink.get(pid) || []).slice().sort((a, b) => a.c - b.c);
+    const byId = new Map(mine.map(c => [c.id, c]));
+
+    // Nest a comment under its parent when that parent is also one of the
+    // user's comments; otherwise it's a root and we quote the parent above it.
+    const kids = new Map();
+    const roots = [];
+    for (const c of mine) {
+      const par = c.par && byId.has(c.par.id) ? c.par.id : null;
+      if (par) {
+        if (!kids.has(par)) kids.set(par, []);
+        kids.get(par).push(c);
+      } else roots.push(c);
+    }
+
+    const node = c => {
+      const children = kids.get(c.id) || [];
+      const nested = !!(c.par && byId.has(c.par.id));
+      return '<div class="tnode">' + (nested ? "" : parentQuote(c)) + userComment(c) +
+        (children.length ? '<div class="tkids">' + children.map(node).join("") + "</div>" : "") + "</div>";
+    };
+
+    const head = mine.length
+      ? '<div class="threadhead">' + mine.length + " comment" + (mine.length === 1 ? "" : "s") +
+        " by u/" + esc(DATA.user) + " <span>in this thread</span></div>"
+      : '<div class="threadhead"><span>No comments by u/' + esc(DATA.user) + " in this thread.</span></div>";
+
+    el.innerHTML = bar + threadPost(post) + head + roots.map(node).join("");
+  }
+
+  $("#back").onclick = () => {
+    if (navDepth > 0) { navDepth--; history.back(); }
+    else { history.replaceState(null, "", location.pathname + location.search); route(); }
+  };
+}
+
+/* ---------- routing ---------- */
+let archiveScroll = 0;
+let navDepth = 0;
+
+function route() {
+  const m = location.hash.match(/^#t\/([A-Za-z0-9_]+)$/);
+  const inThread = document.body.classList.contains("thread-mode");
+  if (m) {
+    if (!inThread) archiveScroll = window.scrollY;
+    document.body.classList.add("thread-mode");
+    renderThread(m[1]);
+    window.scrollTo(0, 0);
+  } else {
+    document.body.classList.remove("thread-mode");
+    $("#thread").innerHTML = "";
+    if (inThread) window.scrollTo(0, archiveScroll);
+  }
+}
+
+document.addEventListener("click", e => { if (e.target.closest('a[href^="#t/"]')) navDepth++; });
+window.addEventListener("hashchange", route);
+
 render();
+route();
 </script>
 </body>
 </html>
