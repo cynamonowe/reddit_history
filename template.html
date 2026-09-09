@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>u/WillyDreamwold — Reddit archive</title>
+<style>
+  :root {
+    color-scheme: light;
+    --plane:      #f9f9f7;
+    --surface:    #fcfcfb;
+    --sunken:     #f2f1ec;
+    --ink:        #0b0b0b;
+    --ink-2:      #52514e;
+    --muted:      #898781;
+    --grid:       #e1e0d9;
+    --baseline:   #c3c2b7;
+    --border:     rgba(11,11,11,0.10);
+    --series-1:   #2a78d6;  /* comments */
+    --series-2:   #eb6834;  /* posts */
+    --accent:     #2a78d6;
+    --shadow:     0 1px 2px rgba(11,11,11,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --plane:    #0d0d0d;
+      --surface:  #1a1a19;
+      --sunken:   #131312;
+      --ink:      #ffffff;
+      --ink-2:    #c3c2b7;
+      --muted:    #898781;
+      --grid:     #2c2c2a;
+      --baseline: #383835;
+      --border:   rgba(255,255,255,0.10);
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --accent:   #3987e5;
+      --shadow:   none;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --plane:    #0d0d0d;
+    --surface:  #1a1a19;
+    --sunken:   #131312;
+    --ink:      #ffffff;
+    --ink-2:    #c3c2b7;
+    --muted:    #898781;
+    --grid:     #2c2c2a;
+    --baseline: #383835;
+    --border:   rgba(255,255,255,0.10);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --accent:   #3987e5;
+    --shadow:   none;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--plane);
+    color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 32px 20px 96px; }
+  a { color: var(--accent); }
+
+  /* ---------- header ---------- */
+  header.top { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -.01em; }
+  h1 .u { color: var(--muted); font-weight: 400; }
+  .sub { color: var(--ink-2); font-size: 14px; margin: 0; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
+          letter-spacing: .03em; text-transform: uppercase; background: var(--sunken); color: var(--ink-2);
+          border: 1px solid var(--border); vertical-align: 3px; margin-left: 8px; }
+  .themebtn { background: var(--surface); color: var(--ink-2); border: 1px solid var(--border); border-radius: 8px;
+              padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+  .themebtn:hover { color: var(--ink); }
+
+  /* ---------- stat tiles ---------- */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 26px; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .tile .v { font-size: 27px; font-weight: 600; letter-spacing: -.02em; line-height: 1.15; }
+  .tile .l { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* ---------- chart ---------- */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px 14px; box-shadow: var(--shadow); }
+  .card-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+  .card-title { font-size: 15px; font-weight: 600; }
+  .card-note { font-size: 12.5px; color: var(--muted); }
+  .legend { display: flex; gap: 16px; align-items: center; font-size: 12.5px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+  .chartbox { position: relative; margin-top: 16px; }
+  .plot { position: relative; height: 168px; display: flex; align-items: flex-end; gap: 2px; }
+  .gridlines { position: absolute; inset: 0; pointer-events: none; }
+  .gridlines i { position: absolute; left: 0; right: 0; height: 1px; background: var(--grid); }
+  .gridlines i.base { background: var(--baseline); }
+  .ylab { position: absolute; right: calc(100% + 8px); transform: translateY(-50%); font-size: 11px;
+          color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .col { position: relative; flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column;
+         justify-content: flex-end; cursor: pointer; }
+  .col::before { content: ""; position: absolute; inset: -6px -1px 0; }           /* enlarged hit target */
+  .seg { width: 100%; }
+  .seg.c { background: var(--series-1); }
+  .seg.p { background: var(--series-2); margin-bottom: 2px; }                      /* 2px surface gap */
+  .seg.cap { border-radius: 4px 4px 0 0; }                                         /* rounded data-end */
+  .col.dim { opacity: .32; }
+  .col.on .seg { outline: 2px solid var(--surface); outline-offset: -1px; }
+  .xaxis { position: relative; height: 18px; margin-top: 7px; }
+  .xaxis b { position: absolute; transform: translateX(-50%); font-size: 11px; color: var(--muted); font-weight: 400;
+             font-variant-numeric: tabular-nums; }
+  .chartpad { padding-left: 34px; }
+
+  .tip { position: absolute; z-index: 20; pointer-events: none; background: var(--surface); color: var(--ink);
+         border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12.5px;
+         box-shadow: 0 4px 14px rgba(0,0,0,.14); white-space: nowrap; opacity: 0; transition: opacity .1s; }
+  .tip.show { opacity: 1; }
+  .tip .m { font-weight: 600; margin-bottom: 4px; }
+  .tip .r { display: flex; align-items: center; gap: 6px; color: var(--ink-2); }
+  .tip .r b { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 600; margin-left: auto; padding-left: 14px; }
+
+  .linkbtn { background: none; border: 0; padding: 0; font: inherit; font-size: 12.5px; color: var(--accent); cursor: pointer; }
+  .linkbtn:hover { text-decoration: underline; }
+  table.tv { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 14px; }
+  table.tv th, table.tv td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  table.tv th:first-child, table.tv td:first-child { text-align: left; }
+  table.tv th { color: var(--muted); font-weight: 500; }
+  .tvwrap { max-height: 320px; overflow: auto; }
+
+  /* ---------- filters ---------- */
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 26px 0 14px; position: sticky; top: 0;
+             background: var(--plane); padding: 10px 0; z-index: 10; border-bottom: 1px solid var(--border); }
+  .filters input[type=search], .filters select {
+    font: inherit; font-size: 13.5px; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; }
+  .filters input[type=search] { flex: 1 1 220px; min-width: 160px; }
+  .seg-ctl { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg-ctl button { font: inherit; font-size: 13.5px; padding: 7px 13px; border: 0; background: none; color: var(--ink-2); cursor: pointer; }
+  .seg-ctl button + button { border-left: 1px solid var(--border); }
+  .seg-ctl button[aria-pressed=true] { background: var(--accent); color: #fff; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; background: var(--sunken);
+          border: 1px solid var(--border); border-radius: 999px; padding: 5px 6px 5px 11px; color: var(--ink-2); }
+  .chip button { border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; font-size: 15px; line-height: 1; padding: 0 4px; }
+  .chip button:hover { color: var(--ink); }
+  .count { font-size: 13px; color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+
+  /* ---------- feed ---------- */
+  .item { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 15px 18px;
+          margin-bottom: 10px; box-shadow: var(--shadow); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
+  .meta .sr { color: var(--ink); font-weight: 600; }
+  .meta .dot::before { content: "·"; }
+  .kind { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 2px 6px;
+          border-radius: 4px; color: #fff; }
+  .kind.p { background: var(--series-2); }
+  .kind.c { background: var(--series-1); }
+  .flair { background: var(--sunken); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 11.5px; color: var(--ink-2); }
+  .op { background: var(--series-2); color: #fff; border-radius: 4px; padding: 1px 5px; font-size: 10.5px; font-weight: 700; }
+  .score { font-variant-numeric: tabular-nums; }
+
+  .ptitle { font-size: 17px; font-weight: 600; line-height: 1.35; margin: 0 0 8px; letter-spacing: -.01em; }
+  .ptitle a { color: inherit; text-decoration: none; }
+  .ptitle a:hover { text-decoration: underline; }
+
+  .ctxwrap { border-left: 3px solid var(--grid); padding-left: 12px; margin-bottom: 12px; }
+  .ctxlbl { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 3px; }
+  .ctxpost { font-size: 14px; font-weight: 600; line-height: 1.4; }
+  .ctxpost a { color: inherit; text-decoration: none; }
+  .ctxpost a:hover { text-decoration: underline; }
+  .ctxsub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .parent { margin-top: 10px; background: var(--sunken); border-radius: 8px; padding: 9px 11px; }
+  .parent .who { font-size: 12px; color: var(--ink-2); margin-bottom: 3px; }
+  .parent .who b { color: var(--ink); font-weight: 600; }
+  .parent .body { font-size: 13.5px; color: var(--ink-2); }
+  .absent { font-size: 12.5px; color: var(--muted); font-style: italic; }
+
+  .body { overflow-wrap: anywhere; }
+  .body p { margin: 0 0 9px; }
+  .body p:last-child { margin-bottom: 0; }
+  .body blockquote { margin: 0 0 9px; padding-left: 11px; border-left: 3px solid var(--grid); color: var(--ink-2); }
+  .body code { background: var(--sunken); border-radius: 4px; padding: 1px 4px; font-size: .9em; }
+  .body ul { margin: 0 0 9px; padding-left: 22px; }
+  .clamp { max-height: 300px; overflow: hidden; position: relative; }
+  .clamp::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 64px;
+                  background: linear-gradient(to bottom, transparent, var(--surface)); }
+  .more { margin-top: 6px; }
+
+  .foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px; font-size: 12.5px; }
+  .foot a { color: var(--muted); text-decoration: none; }
+  .foot a:hover { color: var(--accent); text-decoration: underline; }
+  .ext { font-size: 13px; margin-bottom: 8px; overflow-wrap: anywhere; }
+
+  .empty { text-align: center; color: var(--muted); padding: 60px 20px; }
+  .loadmore { display: block; width: 100%; margin: 16px 0 0; padding: 12px; font: inherit; font-size: 14px;
+              background: var(--surface); color: var(--ink-2); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
+  .loadmore:hover { color: var(--ink); }
+
+  .provenance { margin-top: 40px; font-size: 12.5px; color: var(--muted); line-height: 1.7; }
+  .provenance h2 { font-size: 13px; color: var(--ink-2); margin: 0 0 6px; }
+  .provenance code { background: var(--sunken); border-radius: 4px; padding: 1px 5px; }
+  .hidden { display: none !important; }
+  @media (max-width: 560px) { .chartpad { padding-left: 26px; } .plot { height: 130px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div>
+    <h1><span class="u">u/</span><span id="uname"></span><span class="pill" id="upill">account deleted</span></h1>
+    <p class="sub" id="usub"></p>
+  </div>
+  <button class="themebtn" id="theme" type="button">Toggle theme</button>
+</header>
+
+<section class="tiles" id="tiles"></section>
+
+<section class="card">
+  <div class="card-head">
+    <div>
+      <div class="card-title">Activity by month</div>
+      <div class="card-note" id="chartnote">Click a bar to filter the archive to that month.</div>
+    </div>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--series-1)"></i>Comments</span>
+      <span><i class="swatch" style="background:var(--series-2)"></i>Posts</span>
+      <button class="linkbtn" id="tvtoggle" type="button">Show table</button>
+    </div>
+  </div>
+  <div class="chartbox chartpad">
+    <div class="plot" id="plot"><div class="gridlines" id="gridlines"></div></div>
+    <div class="xaxis" id="xaxis"></div>
+    <div class="tip" id="tip"></div>
+  </div>
+  <div class="tvwrap hidden" id="tvwrap"></div>
+</section>
+
+<div class="filters">
+  <input type="search" id="q" placeholder="Search text, titles, subreddits…" autocomplete="off">
+  <div class="seg-ctl" role="group" aria-label="Type">
+    <button type="button" data-kind="all" aria-pressed="true">All</button>
+    <button type="button" data-kind="p" aria-pressed="false">Posts</button>
+    <button type="button" data-kind="c" aria-pressed="false">Comments</button>
+  </div>
+  <select id="sub"></select>
+  <select id="sort">
+    <option value="new">Newest first</option>
+    <option value="old">Oldest first</option>
+    <option value="top">Highest score</option>
+    <option value="low">Lowest score</option>
+  </select>
+  <span class="chip hidden" id="monthchip"></span>
+  <span class="count" id="count"></span>
+</div>
+
+<main id="feed"></main>
+<button class="loadmore hidden" id="loadmore" type="button">Load more</button>
+
+<section class="provenance">
+  <h2>About this archive</h2>
+  <p>
+    Built from the <a href="https://github.com/ArthurHeitmann/arctic_shift" target="_blank" rel="noopener noreferrer">Arctic Shift</a>
+    public Reddit dumps (<code>arctic-shift.photon-reddit.com</code>). Every comment is stitched to the submission it was
+    posted under and to the exact comment it replied to; top-level comments reply to the submission itself.
+    Scores are frozen at the moment the archive captured each item, not current values.
+    Generated <span id="gen"></span>. <span id="gaps"></span>
+  </p>
+</section>
+
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+const nf = n => (n == null ? "–" : n.toLocaleString("en-US"));
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const dt = ts => { const d = new Date(ts * 1000);
+  return MON[d.getUTCMonth()] + " " + d.getUTCDate() + ", " + d.getUTCFullYear(); };
+const monthKey = ts => { const d = new Date(ts * 1000);
+  return d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, "0"); };
+const monthLabel = k => { const [y, m] = k.split("-"); return MON[+m - 1] + " " + y; };
+const RD = p => "https://www.reddit.com" + p;
+
+/* Reddit markdown, conservatively: escape first, then re-introduce a safe subset.
+   Links are pulled out to placeholders so the bare-URL pass can't nest inside them. */
+function md(src) {
+  if (!src) return "";
+  if (src === "[deleted]" || src === "[removed]") return "";
+  let s = esc(src);
+  const held = [];
+  // esc() can never emit a raw "<", so <n> is a collision-free placeholder.
+  const hold = h => "<" + (held.push(h) - 1) + ">";
+
+  s = s.replace(/```([\s\S]*?)```/g, (_, c) => hold("<code>" + c.trim() + "</code>"));
+  s = s.replace(/`([^`\n]+)`/g, (_, c) => hold("<code>" + c + "</code>"));
+  s = s.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    (_, t, u) => hold('<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + t + "</a>"));
+  s = s.replace(/(^|[\s(])(https?:\/\/[^\s<>()]+)/g,
+    (_, pre, u) => pre + hold('<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + u + "</a>"));
+  s = s.replace(/(^|[\s(])(\/?[ru]\/[A-Za-z0-9_-]{2,24})/g, (_, pre, m) => {
+    const path = m.startsWith("/") ? m : "/" + m;
+    return pre + hold('<a href="https://www.reddit.com' + path +
+      '" target="_blank" rel="noopener noreferrer">' + m + "</a>");
+  });
+
+  s = s.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
+  s = s.replace(/~~([^~\n]+)~~/g, "<del>$1</del>");
+
+  const out = s.split(/\n{2,}/).map(block => {
+    const lines = block.split("\n");
+    if (lines.every(l => /^&gt;\s?/.test(l)))
+      return "<blockquote>" + lines.map(l => l.replace(/^&gt;\s?/, "")).join("<br>") + "</blockquote>";
+    if (lines.every(l => /^\s*[-*+]\s+/.test(l)))
+      return "<ul>" + lines.map(l => "<li>" + l.replace(/^\s*[-*+]\s+/, "") + "</li>").join("") + "</ul>";
+    return "<p>" + lines.join("<br>") + "</p>";
+  }).join("");
+
+  return out.replace(/<(\d+)>/g, (_, i) => held[+i]);
+}
+
+/* ---------- header + tiles ---------- */
+const S = DATA.stats;
+$("#uname").textContent = DATA.user;
+$("#usub").textContent =
+  dt(S.first) + " – " + dt(S.last) + " · " + S.subs + " subreddits" + (DATA.userId ? " · " + DATA.userId : "");
+$("#gen").textContent = DATA.generated;
+$("#gaps").textContent =
+  S.goneBodies + " of the user's self-posts were captured by the archive only after deletion, so their body text " +
+  "reads as [deleted]/[removed]; " + S.missingParents + " parent comment is not present in the dumps. " +
+  "Everything else is complete.";
+
+const yrs = ((S.last - S.first) / 31557600).toFixed(1);
+$("#tiles").innerHTML = [
+  [nf(S.comments), "comments"],
+  [nf(S.posts), "posts"],
+  [nf(S.subs), "subreddits"],
+  [nf(S.commentKarma + S.postKarma), "score, archived"],
+  [yrs + " yr", "active span"],
+].map(([v, l]) => '<div class="tile"><div class="v">' + v + '</div><div class="l">' + l + "</div></div>").join("");
+
+/* ---------- chart ---------- */
+const months = DATA.months;
+const peak = Math.max(...months.map(m => m.c + m.p));
+const tickStep = peak > 120 ? 50 : peak > 60 ? 25 : 10;
+
+const gl = $("#gridlines");
+let glh = "";
+for (let v = 0; v <= peak; v += tickStep) {
+  const pct = 100 - (v / peak) * 100;
+  glh += '<i class="' + (v === 0 ? "base" : "") + '" style="top:' + pct + '%"></i>' +
+         '<b class="ylab" style="top:' + pct + '%">' + v + "</b>";
+}
+gl.innerHTML = glh;
+
+const plot = $("#plot");
+months.forEach((m, i) => {
+  const tot = m.c + m.p;
+  const col = document.createElement("div");
+  col.className = "col";
+  col.dataset.m = m.m;
+  col.tabIndex = -1;
+  let h = "";
+  if (m.p) h += '<div class="seg p cap" style="height:' + (m.p / peak) * 100 + '%"></div>';
+  if (m.c) h += '<div class="seg c' + (m.p ? "" : " cap") + '" style="height:' + (m.c / peak) * 100 + '%"></div>';
+  col.innerHTML = h;
+  col.title = monthLabel(m.m) + " — " + tot + " item" + (tot === 1 ? "" : "s");
+  plot.appendChild(col);
+});
+
+const xa = $("#xaxis");
+months.forEach((m, i) => {
+  if (!m.m.endsWith("-01") && i !== 0) return;
+  const b = document.createElement("b");
+  b.textContent = m.m.slice(0, 4);
+  b.style.left = ((i + 0.5) / months.length) * 100 + "%";
+  xa.appendChild(b);
+});
+
+const tip = $("#tip");
+plot.addEventListener("mousemove", e => {
+  const col = e.target.closest(".col");
+  if (!col) return;
+  const m = months.find(x => x.m === col.dataset.m);
+  tip.innerHTML =
+    '<div class="m">' + monthLabel(m.m) + "</div>" +
+    '<div class="r"><i class="swatch" style="background:var(--series-1)"></i>Comments<b>' + m.c + "</b></div>" +
+    '<div class="r"><i class="swatch" style="background:var(--series-2)"></i>Posts<b>' + m.p + "</b></div>";
+  tip.classList.add("show");
+  // The tip is absolutely positioned inside .chartbox, which is padded — measure against it, not .plot.
+  const box = tip.offsetParent.getBoundingClientRect();
+  const x = col.getBoundingClientRect().left - box.left + col.offsetWidth / 2;
+  tip.style.left = Math.max(0, Math.min(box.width - tip.offsetWidth, x - tip.offsetWidth / 2)) + "px";
+  tip.style.top = "-8px";
+  tip.style.transform = "translateY(-100%)";
+});
+plot.addEventListener("mouseleave", () => tip.classList.remove("show"));
+plot.addEventListener("click", e => {
+  const col = e.target.closest(".col");
+  if (!col) return;
+  F.month = F.month === col.dataset.m ? null : col.dataset.m;
+  render();
+});
+
+$("#tvtoggle").addEventListener("click", () => {
+  const w = $("#tvwrap"), on = w.classList.toggle("hidden");
+  $("#tvtoggle").textContent = on ? "Show table" : "Hide table";
+  if (!on && !w.innerHTML) {
+    w.innerHTML = "<table class='tv'><thead><tr><th>Month</th><th>Comments</th><th>Posts</th><th>Total</th></tr></thead><tbody>" +
+      months.filter(m => m.c + m.p).map(m =>
+        "<tr><td>" + monthLabel(m.m) + "</td><td>" + m.c + "</td><td>" + m.p + "</td><td>" + (m.c + m.p) + "</td></tr>"
+      ).join("") + "</tbody></table>";
+  }
+});
+
+/* ---------- filters ---------- */
+const F = { q: "", kind: "all", sub: "", sort: "new", month: null };
+
+$("#sub").innerHTML = '<option value="">All subreddits</option>' +
+  DATA.subs.map(([s, n]) => '<option value="' + esc(s) + '">r/' + esc(s) + " (" + n + ")</option>").join("");
+
+// Precomputed lowercase haystack: body + title + subreddit + both context layers.
+const hay = new Map();
+for (const it of DATA.items) {
+  let h = (it.b || "") + " " + it.s;
+  if (it.k === "p") h += " " + it.t + " " + (it.f || "");
+  else {
+    const post = DATA.ctx[it.link];
+    if (post) h += " " + post.t;
+    if (it.par) h += " " + it.par.b + " " + it.par.a;
+  }
+  hay.set(it, h.toLowerCase());
+}
+
+let shown = 0;
+const PAGE = 40;
+let filtered = [];
+
+function applyFilters() {
+  const q = F.q.trim().toLowerCase();
+  filtered = DATA.items.filter(it => {
+    if (F.kind !== "all" && it.k !== F.kind) return false;
+    if (F.sub && it.s !== F.sub) return false;
+    if (F.month && monthKey(it.c) !== F.month) return false;
+    if (q && !hay.get(it).includes(q)) return false;
+    return true;
+  });
+  const dir = { new: (a, b) => b.c - a.c, old: (a, b) => a.c - b.c,
+                top: (a, b) => (b.sc || 0) - (a.sc || 0), low: (a, b) => (a.sc || 0) - (b.sc || 0) }[F.sort];
+  filtered.sort(dir);
+}
+
+/* ---------- cards ---------- */
+function metaRow(it) {
+  const bits = ['<span class="kind ' + it.k + '">' + (it.k === "p" ? "post" : "comment") + "</span>",
+                '<span class="sr">r/' + esc(it.s) + "</span>",
+                '<span class="dot"></span><span>' + dt(it.c) + "</span>",
+                '<span class="dot"></span><span class="score">' + nf(it.sc) + " pts</span>"];
+  if (it.k === "p" && it.nc != null)
+    bits.push('<span class="dot"></span><span>' + nf(it.nc) + " comment" + (it.nc === 1 ? "" : "s") + "</span>");
+  if (it.k === "p" && it.f) bits.push('<span class="flair">' + esc(it.f) + "</span>");
+  if (it.k === "c" && it.op) bits.push('<span class="op">OP</span>');
+  if (it.k === "p" && it.nsfw) bits.push('<span class="flair">NSFW</span>');
+  return '<div class="meta">' + bits.join("") + "</div>";
+}
+
+function bodyBlock(text, gone, goneMsg) {
+  if (gone) return '<div class="absent">' + goneMsg + "</div>";
+  const h = md(text);
+  return h ? '<div class="body">' + h + "</div>" : "";
+}
+
+function card(it) {
+  if (it.k === "p") {
+    const ext = it.u ? '<div class="ext"><a href="' + esc(it.u) + '" target="_blank" rel="noopener noreferrer">' +
+      esc(it.u) + "</a> <span style='color:var(--muted)'>(" + esc(it.dom) + ")</span></div>" : "";
+    return '<article class="item">' + metaRow(it) +
+      '<h3 class="ptitle"><a href="' + RD(it.p) + '" target="_blank" rel="noopener noreferrer">' + esc(it.t) + "</a></h3>" +
+      ext +
+      bodyBlock(it.b, it.gone, "Body not preserved — the archive captured this post only after it was deleted.") +
+      '<div class="foot"><a href="' + RD(it.p) + '" target="_blank" rel="noopener noreferrer">View on Reddit ↗</a></div>' +
+      "</article>";
+  }
+
+  const post = DATA.ctx[it.link];
+  let ctx = '<div class="ctxwrap">';
+  ctx += '<div class="ctxlbl">In reply to a post</div>';
+  if (post) {
+    ctx += '<div class="ctxpost"><a href="' + RD(post.p) + '" target="_blank" rel="noopener noreferrer">' +
+      esc(post.t) + "</a></div>";
+    ctx += '<div class="ctxsub">r/' + esc(post.s) + " · posted by u/" + esc(post.a) + " · " + dt(post.c) +
+      " · " + nf(post.sc) + " pts</div>";
+  } else {
+    ctx += '<div class="absent">Parent post not in the archive.</div>';
+  }
+
+  if (it.top) {
+    ctx += '<div class="parent"><div class="who">Top-level comment — this replies to the post itself.</div></div>';
+  } else if (it.par) {
+    ctx += '<div class="parent"><div class="who">Replying to <b>u/' + esc(it.par.a) + "</b> · " + dt(it.par.c) +
+      " · " + nf(it.par.sc) + " pts</div>" +
+      (it.par.gone
+        ? '<div class="absent">This comment was deleted before the archive captured it.</div>'
+        : '<div class="body">' + md(it.par.b) + "</div>") + "</div>";
+  } else {
+    ctx += '<div class="parent"><div class="absent">The comment being replied to (' +
+      esc(it.parMissing) + ") is not present in the archive.</div></div>";
+  }
+  ctx += "</div>";
+
+  return '<article class="item">' + metaRow(it) + ctx +
+    '<div class="body">' + md(it.b) + "</div>" +
+    '<div class="foot"><a href="' + RD(it.p) + '" target="_blank" rel="noopener noreferrer">View on Reddit ↗</a></div>' +
+    "</article>";
+}
+
+/* ---------- render ---------- */
+const feed = $("#feed"), loadmore = $("#loadmore");
+
+function paint(reset) {
+  if (reset) { feed.innerHTML = ""; shown = 0; }
+  const slice = filtered.slice(shown, shown + PAGE);
+  const frag = document.createElement("div");
+  frag.innerHTML = slice.map(card).join("");
+  while (frag.firstChild) feed.appendChild(frag.firstChild);
+  shown += slice.length;
+  loadmore.classList.toggle("hidden", shown >= filtered.length);
+  loadmore.textContent = "Load more (" + (filtered.length - shown) + " remaining)";
+
+  // Long bodies get clamped with an inline expander.
+  feed.querySelectorAll(".item > .body:not([data-ck])").forEach(b => {
+    b.dataset.ck = "1";
+    if (b.scrollHeight > 340) {
+      b.classList.add("clamp");
+      const btn = document.createElement("button");
+      btn.className = "linkbtn more";
+      btn.textContent = "Show full text";
+      btn.onclick = () => { b.classList.remove("clamp"); btn.remove(); };
+      b.after(btn);
+    }
+  });
+}
+
+function render() {
+  applyFilters();
+  $("#count").textContent = nf(filtered.length) + " of " + nf(DATA.items.length) + " items";
+  const chip = $("#monthchip");
+  if (F.month) {
+    chip.classList.remove("hidden");
+    chip.innerHTML = esc(monthLabel(F.month)) + '<button type="button" title="Clear month filter">×</button>';
+    chip.querySelector("button").onclick = () => { F.month = null; render(); };
+  } else chip.classList.add("hidden");
+  plot.querySelectorAll(".col").forEach(c => {
+    c.classList.toggle("dim", !!F.month && c.dataset.m !== F.month);
+    c.classList.toggle("on", F.month === c.dataset.m);
+  });
+  paint(true);
+  if (!filtered.length) feed.innerHTML = '<div class="empty">Nothing matches these filters.</div>';
+}
+
+let deb;
+$("#q").addEventListener("input", e => {
+  clearTimeout(deb);
+  deb = setTimeout(() => { F.q = e.target.value; render(); }, 160);
+});
+$("#sub").addEventListener("change", e => { F.sub = e.target.value; render(); });
+$("#sort").addEventListener("change", e => { F.sort = e.target.value; render(); });
+document.querySelectorAll(".seg-ctl button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".seg-ctl button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  F.kind = b.dataset.kind; render();
+}));
+loadmore.addEventListener("click", () => paint(false));
+
+$("#theme").addEventListener("click", () => {
+  const cur = document.documentElement.dataset.theme ||
+    (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  document.documentElement.dataset.theme = cur === "dark" ? "light" : "dark";
+});
+
+render();
+</script>
+</body>
+</html>
